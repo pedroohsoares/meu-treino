@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   ChevronDown, ChevronUp, CheckCircle, Calendar, TrendingUp, 
   AlertCircle, Target, Flame, RefreshCw, Plus, X, Menu,
-  Trash2, Activity, BarChart3, Dumbbell, Award, Zap
+  Trash2, Activity, BarChart3, Dumbbell, Award, Zap, Edit3,
+  Clock, Users, Star, Heart, Activity as ActivityIcon
 } from 'lucide-react';
 
 // ⚡ Storage corrigido
@@ -38,6 +39,27 @@ const WorkoutSystem = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('workout');
   const [showClearHistory, setShowClearHistory] = useState(null);
+  const [editingLog, setEditingLog] = useState(null);
+  const [restTimer, setRestTimer] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+
+  // 🆕 TIMER DE DESCANSO
+  useEffect(() => {
+    let interval;
+    if (isTimerRunning && restTimer > 0) {
+      interval = setInterval(() => {
+        setRestTimer(time => time - 1);
+      }, 1000);
+    } else if (restTimer === 0) {
+      setIsTimerRunning(false);
+    }
+    return () => clearInterval(interval);
+  }, [isTimerRunning, restTimer]);
+
+  const startRestTimer = (minutes = 1.5) => {
+    setRestTimer(Math.floor(minutes * 60));
+    setIsTimerRunning(true);
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -56,6 +78,38 @@ const WorkoutSystem = () => {
     loadData();
   }, []);
 
+  // 🆕 FUNÇÃO PARA EXCLUIR REGISTRO INDIVIDUAL
+  const deleteSingleLog = async (exerciseId, logIndex) => {
+    const newHistory = { ...workoutHistory };
+    if (newHistory[exerciseId]) {
+      newHistory[exerciseId] = newHistory[exerciseId].filter((_, index) => index !== logIndex);
+      if (newHistory[exerciseId].length === 0) {
+        delete newHistory[exerciseId];
+      }
+      setWorkoutHistory(newHistory);
+      try {
+        await storage.set('workout-history', JSON.stringify(newHistory));
+      } catch (err) {
+        console.error('Erro ao excluir registro:', err);
+      }
+    }
+  };
+
+  // 🆕 FUNÇÃO PARA EDITAR REGISTRO
+  const editLog = async (exerciseId, logIndex, updatedLog) => {
+    const newHistory = { ...workoutHistory };
+    if (newHistory[exerciseId]) {
+      newHistory[exerciseId][logIndex] = updatedLog;
+      setWorkoutHistory(newHistory);
+      try {
+        await storage.set('workout-history', JSON.stringify(newHistory));
+      } catch (err) {
+        console.error('Erro ao editar registro:', err);
+      }
+    }
+    setEditingLog(null);
+  };
+
   // 🆕 FUNÇÃO PARA LIMPAR HISTÓRICO DE UM EXERCÍCIO
   const clearExerciseHistory = async (exerciseId) => {
     const newHistory = { ...workoutHistory };
@@ -71,11 +125,13 @@ const WorkoutSystem = () => {
 
   // 🆕 FUNÇÃO PARA LIMPAR TODO O HISTÓRICO
   const clearAllHistory = async () => {
-    setWorkoutHistory({});
-    try {
-      await storage.set('workout-history', JSON.stringify({}));
-    } catch (err) {
-      console.error('Erro ao limpar histórico:', err);
+    if (window.confirm('Tem certeza que quer limpar TODO o histórico de treinos?')) {
+      setWorkoutHistory({});
+      try {
+        await storage.set('workout-history', JSON.stringify({}));
+      } catch (err) {
+        console.error('Erro ao limpar histórico:', err);
+      }
     }
   };
 
@@ -176,6 +232,7 @@ const WorkoutSystem = () => {
       subtitle: 'Peito, Ombros, Tríceps',
       icon: '💪',
       color: 'from-red-500 to-orange-500',
+      description: 'Foco em força superior - desenvolva peitoral, ombros e tríceps',
       exercises: [
         {
           id: 'a1',
@@ -241,6 +298,7 @@ const WorkoutSystem = () => {
       subtitle: 'Costas, Bíceps, Postura',
       icon: '🏔️',
       color: 'from-blue-500 to-cyan-500',
+      description: 'Construa costas em V e melhore a postura',
       exercises: [
         {
           id: 'b1',
@@ -294,6 +352,7 @@ const WorkoutSystem = () => {
       subtitle: 'Motor V8: Quadríceps, Posterior, Glúteo',
       icon: '🦵',
       color: 'from-green-500 to-emerald-500',
+      description: 'Dia do motor principal - pernas fortes aceleram o metabolismo',
       exercises: [
         {
           id: 'c1',
@@ -370,6 +429,7 @@ const WorkoutSystem = () => {
           <Dumbbell className="w-8 h-8 text-cyan-400" />
           <h2 className="text-xl font-bold text-white">Meu Treino</h2>
         </div>
+        <p className="text-sm text-slate-400 mt-2">Sistema de treino inteligente</p>
       </div>
       
       <nav className="p-4 space-y-2">
@@ -420,10 +480,13 @@ const WorkoutSystem = () => {
               }`}
             >
               <span className="text-lg">{workout.icon}</span>
-              <div className="text-left">
+              <div className="text-left flex-1">
                 <div className="font-medium">Treino {key}</div>
                 <div className="text-xs text-slate-500">{workout.name}</div>
               </div>
+              {currentWorkout === key && (
+                <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+              )}
             </button>
           ))}
         </div>
@@ -431,11 +494,7 @@ const WorkoutSystem = () => {
         {Object.keys(workoutHistory).length > 0 && (
           <div className="pt-4 border-t border-slate-700">
             <button
-              onClick={() => {
-                if (window.confirm('Tem certeza que quer limpar TODO o histórico?')) {
-                  clearAllHistory();
-                }
-              }}
+              onClick={clearAllHistory}
               className="w-full flex items-center gap-3 p-3 rounded-lg text-red-400 hover:bg-red-500/10 transition-all"
             >
               <Trash2 className="w-5 h-5" />
@@ -446,6 +505,72 @@ const WorkoutSystem = () => {
       </nav>
     </div>
   );
+
+  // 🆕 COMPONENTE DE EDIÇÃO DE REGISTRO
+  const EditLogForm = ({ log, onSave, onCancel }) => {
+    const [sets, setSets] = useState(log.sets);
+    const [reps, setReps] = useState(log.reps);
+    const [weight, setWeight] = useState(log.weight);
+
+    const handleSave = () => {
+      onSave({
+        ...log,
+        sets: parseInt(sets) || 0,
+        reps: parseInt(reps) || 0,
+        weight: parseInt(weight) || 0
+      });
+    };
+
+    return (
+      <div className="bg-slate-800 border border-slate-600 rounded-lg p-3 mb-2">
+        <h4 className="text-white font-semibold mb-2">Editar Registro</h4>
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <div>
+            <label className="text-xs text-slate-400 block mb-1">Séries</label>
+            <input
+              type="number"
+              value={sets}
+              onChange={(e) => setSets(e.target.value)}
+              className="w-full bg-slate-700 border border-slate-600 text-white rounded px-2 py-1 text-center"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 block mb-1">Reps</label>
+            <input
+              type="number"
+              value={reps}
+              onChange={(e) => setReps(e.target.value)}
+              className="w-full bg-slate-700 border border-slate-600 text-white rounded px-2 py-1 text-center"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 block mb-1">Peso (kg)</label>
+            <input
+              type="number"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              className="w-full bg-slate-700 border border-slate-600 text-white rounded px-2 py-1 text-center"
+            />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleSave}
+            className="flex-1 bg-green-500 hover:bg-green-600 text-white py-1 px-3 rounded text-sm flex items-center justify-center gap-1"
+          >
+            <CheckCircle className="w-3 h-3" />
+            Salvar
+          </button>
+          <button
+            onClick={onCancel}
+            className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-1 px-3 rounded text-sm"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   // 🆕 COMPONENTE DE PROGRESSO
   const ProgressTab = () => {
@@ -466,10 +591,15 @@ const WorkoutSystem = () => {
 
     return (
       <div className="max-w-2xl mx-auto px-4 mt-6">
-        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-          <BarChart3 className="w-6 h-6" />
-          Meu Progresso
-        </h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+            <BarChart3 className="w-6 h-6" />
+            Meu Progresso
+          </h2>
+          <div className="text-sm text-slate-400">
+            {exercisesWithHistory.length} exercício(s) com histórico
+          </div>
+        </div>
 
         <div className="space-y-4">
           {exercisesWithHistory.map(([exerciseId, history]) => {
@@ -523,13 +653,13 @@ const WorkoutSystem = () => {
                   </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="grid grid-cols-3 gap-4 text-center mb-3">
                   <div className="bg-slate-900/50 rounded-lg p-3">
                     <div className="text-2xl font-bold text-white">{latestLog.sets}x{latestLog.reps}</div>
                     <div className="text-xs text-slate-400">Séries x Reps</div>
                     {repsDiff !== 0 && (
                       <div className={`text-xs ${repsDiff > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {repsDiff > 0 ? '+' : ''}{repsDiff} reps
+                        {repsDiff > 0 ? '↑+' : '↓'}{Math.abs(repsDiff)} reps
                       </div>
                     )}
                   </div>
@@ -539,7 +669,7 @@ const WorkoutSystem = () => {
                     <div className="text-xs text-slate-400">Peso</div>
                     {weightDiff !== 0 && (
                       <div className={`text-xs ${weightDiff > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {weightDiff > 0 ? '+' : ''}{weightDiff}kg
+                        {weightDiff > 0 ? '↑+' : '↓'}{Math.abs(weightDiff)}kg
                       </div>
                     )}
                   </div>
@@ -552,22 +682,62 @@ const WorkoutSystem = () => {
 
                 <button
                   onClick={() => setShowHistory(showHistory === exerciseId ? null : exerciseId)}
-                  className="w-full mt-3 text-sm text-cyan-400 hover:text-cyan-300"
+                  className="w-full text-sm text-cyan-400 hover:text-cyan-300 flex items-center justify-center gap-1"
                 >
-                  {showHistory === exerciseId ? 'Esconder' : 'Ver'} Histórico Completo
+                  {showHistory === exerciseId ? 'Esconder' : 'Ver'} Histórico Completo ({history.length})
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showHistory === exerciseId ? 'rotate-180' : ''}`} />
                 </button>
 
                 {showHistory === exerciseId && (
-                  <div className="mt-3 space-y-2 max-h-40 overflow-y-auto">
-                    {history.slice().reverse().map((log, i) => (
-                      <div key={i} className="text-xs bg-slate-900 p-2 rounded border border-slate-700">
-                        <span className="font-semibold text-white">{log.sets}x{log.reps}</span> • 
-                        <span className="text-cyan-400 mx-1">{log.weight}kg</span> • 
-                        <span className="text-slate-400">
-                          {new Date(log.date).toLocaleDateString('pt-BR')}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="mt-3 space-y-2 max-h-60 overflow-y-auto">
+                    {history.slice().reverse().map((log, i) => {
+                      const originalIndex = history.length - 1 - i;
+                      
+                      if (editingLog && editingLog.exerciseId === exerciseId && editingLog.logIndex === originalIndex) {
+                        return (
+                          <EditLogForm
+                            key={i}
+                            log={log}
+                            onSave={(updatedLog) => editLog(exerciseId, originalIndex, updatedLog)}
+                            onCancel={() => setEditingLog(null)}
+                          />
+                        );
+                      }
+
+                      return (
+                        <div key={i} className="text-xs bg-slate-900 p-3 rounded border border-slate-700">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="font-semibold text-white">
+                              {log.sets}x{log.reps} • {log.weight}kg
+                            </div>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => setEditingLog({ exerciseId, logIndex: originalIndex })}
+                                className="text-blue-400 hover:text-blue-300 transition-colors"
+                                title="Editar"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Excluir este registro?')) {
+                                    deleteSingleLog(exerciseId, originalIndex);
+                                  }
+                                }}
+                                className="text-red-400 hover:text-red-300 transition-colors"
+                                title="Excluir"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="text-slate-400">
+                            {new Date(log.date).toLocaleDateString('pt-BR')} • 
+                            {new Date(log.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -600,8 +770,13 @@ const WorkoutSystem = () => {
       ...workoutHistory,
       [exerciseId]: [
         ...(workoutHistory[exerciseId] || []),
-        { sets, reps, weight, date: timestamp }
-      ].slice(-10)
+        { 
+          sets: parseInt(sets) || 0, 
+          reps: parseInt(reps) || 0, 
+          weight: parseInt(weight) || 0, 
+          date: timestamp 
+        }
+      ].slice(-20) // 🆕 Mantém apenas os 20 registros mais recentes
     };
     setWorkoutHistory(newHistory);
     try {
@@ -712,6 +887,15 @@ const WorkoutSystem = () => {
               </div>
             )}
 
+            {/* 🆕 BOTÃO DE DESCANSO */}
+            <button
+              onClick={() => startRestTimer(1.5)}
+              className="w-full bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 py-2 rounded flex items-center justify-center gap-2 transition-colors"
+            >
+              <Clock className="w-4 h-4" />
+              Iniciar Descanso (1:30)
+            </button>
+
             <div>
               <h4 className="font-semibold text-white mb-2 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
@@ -764,27 +948,36 @@ const WorkoutSystem = () => {
                 Registrar Treino:
               </h4>
               <div className="grid grid-cols-3 gap-2 mb-3">
-                <input
-                  type="number"
-                  placeholder="Séries"
-                  value={sets}
-                  onChange={(e) => setSets(e.target.value)}
-                  className="bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-center focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                />
-                <input
-                  type="number"
-                  placeholder="Reps"
-                  value={reps}
-                  onChange={(e) => setReps(e.target.value)}
-                  className="bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-center focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                />
-                <input
-                  type="number"
-                  placeholder="Kg"
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  className="bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-center focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                />
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1 text-center">Séries</label>
+                  <input
+                    type="number"
+                    placeholder="4"
+                    value={sets}
+                    onChange={(e) => setSets(e.target.value)}
+                    className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-center focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1 text-center">Reps</label>
+                  <input
+                    type="number"
+                    placeholder="12"
+                    value={reps}
+                    onChange={(e) => setReps(e.target.value)}
+                    className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-center focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1 text-center">Kg</label>
+                  <input
+                    type="number"
+                    placeholder="20"
+                    value={weight}
+                    onChange={(e) => setWeight(e.target.value)}
+                    className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-center focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  />
+                </div>
               </div>
               <button
                 onClick={() => {
@@ -795,30 +988,71 @@ const WorkoutSystem = () => {
                     setWeight('');
                   }
                 }}
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold py-2 rounded transition-all"
+                disabled={!sets || !reps || !weight}
+                className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-semibold py-2 rounded transition-all flex items-center justify-center gap-2"
               >
+                <CheckCircle className="w-4 h-4" />
                 Salvar Progresso
               </button>
 
               {history.length > 0 && (
                 <button
                   onClick={() => setShowHistory(showHistory === exercise.id ? null : exercise.id)}
-                  className="w-full mt-2 text-sm text-cyan-400 hover:text-cyan-300"
+                  className="w-full mt-2 text-sm text-cyan-400 hover:text-cyan-300 flex items-center justify-center gap-1"
                 >
                   {showHistory === exercise.id ? 'Esconder' : 'Ver'} Histórico ({history.length})
+                  <ChevronDown className={`w-3 h-3 transition-transform ${showHistory === exercise.id ? 'rotate-180' : ''}`} />
                 </button>
               )}
 
-              {showHistory === exercise.id && (
+              {showHistory === exercise.id && history.length > 0 && (
                 <div className="mt-3 space-y-2 max-h-40 overflow-y-auto">
-                  {history.slice().reverse().map((log, i) => (
-                    <div key={i} className="text-xs bg-slate-800 p-2 rounded border border-slate-700">
-                      <span className="font-semibold text-white">{log.sets}x{log.reps}</span> • <span className="text-cyan-400">{log.weight}kg</span>
-                      <span className="text-slate-400 ml-2">
-                        {new Date(log.date).toLocaleDateString('pt-BR')}
-                      </span>
-                    </div>
-                  ))}
+                  {history.slice().reverse().map((log, i) => {
+                    const originalIndex = history.length - 1 - i;
+                    
+                    if (editingLog && editingLog.exerciseId === exercise.id && editingLog.logIndex === originalIndex) {
+                      return (
+                        <EditLogForm
+                          key={i}
+                          log={log}
+                          onSave={(updatedLog) => editLog(exercise.id, originalIndex, updatedLog)}
+                          onCancel={() => setEditingLog(null)}
+                        />
+                      );
+                    }
+
+                    return (
+                      <div key={i} className="text-xs bg-slate-800 p-2 rounded border border-slate-700 flex justify-between items-center">
+                        <div>
+                          <span className="font-semibold text-white">{log.sets}x{log.reps}</span> • 
+                          <span className="text-cyan-400 mx-1">{log.weight}kg</span> • 
+                          <span className="text-slate-400">
+                            {new Date(log.date).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => setEditingLog({ exerciseId: exercise.id, logIndex: originalIndex })}
+                            className="text-blue-400 hover:text-blue-300 transition-colors"
+                            title="Editar"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Excluir este registro?')) {
+                                deleteSingleLog(exercise.id, originalIndex);
+                              }
+                            }}
+                            className="text-red-400 hover:text-red-300 transition-colors"
+                            title="Excluir"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -844,6 +1078,24 @@ const WorkoutSystem = () => {
         />
       )}
 
+      {/* 🆕 TIMER DE DESCANSO FLUTUANTE */}
+      {isTimerRunning && (
+        <div className="fixed top-4 right-4 bg-purple-600 text-white p-4 rounded-lg shadow-lg z-50 border border-purple-400">
+          <div className="text-center">
+            <div className="text-2xl font-bold">
+              {Math.floor(restTimer / 60)}:{(restTimer % 60).toString().padStart(2, '0')}
+            </div>
+            <div className="text-sm">Tempo de Descanso</div>
+          </div>
+          <button
+            onClick={() => setIsTimerRunning(false)}
+            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* HEADER ATUALIZADO */}
       <div className={`bg-gradient-to-r from-slate-800 to-slate-700 text-white p-6 shadow-2xl border-b border-slate-600 ${sidebarOpen ? 'blur-sm' : ''}`}>
         <div className="max-w-2xl mx-auto">
@@ -863,8 +1115,12 @@ const WorkoutSystem = () => {
                 <p className="text-lg text-cyan-400">{current.name}</p>
               </div>
             </div>
+            <div className="text-right">
+              <div className="text-sm text-slate-300">{current.subtitle}</div>
+              <div className="text-xs text-slate-400">{allExercises.length} exercícios</div>
+            </div>
           </div>
-          <p className="text-sm text-slate-300 mt-2">{current.subtitle}</p>
+          <p className="text-sm text-slate-300 mt-2">{current.description}</p>
         </div>
       </div>
 
@@ -878,23 +1134,29 @@ const WorkoutSystem = () => {
                 <div>
                   <p className="text-sm text-slate-400">Próximo Treino:</p>
                   <p className="font-bold text-white">Treino {getNextWorkout()}: {workouts[getNextWorkout()].name}</p>
+                  <p className="text-xs text-slate-400 mt-1">{workouts[getNextWorkout()].description}</p>
                 </div>
                 <button
                   onClick={completeWorkout}
                   className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold px-6 py-3 rounded-lg flex items-center gap-2 transition-all shadow-lg shadow-cyan-500/20"
                 >
                   <CheckCircle className="w-5 h-5" />
-                  Concluir
+                  Concluir Treino
                 </button>
               </div>
             </div>
 
             {/* Exercises */}
             <div className="max-w-2xl mx-auto px-4 mt-6">
-              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <div className="w-1 h-6 bg-gradient-to-b from-cyan-500 to-blue-600 rounded-full"></div>
-                Exercícios ({allExercises.length})
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <div className="w-1 h-6 bg-gradient-to-b from-cyan-500 to-blue-600 rounded-full"></div>
+                  Exercícios ({allExercises.length})
+                </h2>
+                <div className="text-sm text-slate-400">
+                  {allExercises.filter(e => e.strategic).length} estratégicos
+                </div>
+              </div>
               {allExercises.map((exercise) => (
                 <ExerciseCard
                   key={exercise.id}
@@ -909,21 +1171,21 @@ const WorkoutSystem = () => {
               {!showAddExercise ? (
                 <button
                   onClick={() => setShowAddExercise(true)}
-                  className="w-full bg-slate-800/50 hover:bg-slate-700/50 border-2 border-dashed border-slate-600 hover:border-cyan-500 text-slate-300 hover:text-white font-semibold py-4 rounded-lg flex items-center justify-center gap-2 transition-all"
+                  className="w-full bg-slate-800/50 hover:bg-slate-700/50 border-2 border-dashed border-slate-600 hover:border-cyan-500 text-slate-300 hover:text-white font-semibold py-4 rounded-lg flex items-center justify-center gap-2 transition-all group"
                 >
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
                   Adicionar Exercício Personalizado
                 </button>
               ) : (
                 <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-lg p-4">
                   <h3 className="font-bold text-white mb-4 flex items-center gap-2">
                     <Plus className="w-5 h-5" />
-                    Novo Exercício
+                    Novo Exercício Personalizado
                   </h3>
                   <div className="space-y-3">
                     <input
                       type="text"
-                      placeholder="Nome do Exercício"
+                      placeholder="Nome do Exercício (ex: Supino Inclinado com Halteres)"
                       value={newExercise.name}
                       onChange={(e) => setNewExercise({...newExercise, name: e.target.value})}
                       className="w-full bg-slate-700 border border-slate-600 text-white rounded px-4 py-2 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
@@ -936,7 +1198,11 @@ const WorkoutSystem = () => {
                       className="w-full bg-slate-700 border border-slate-600 text-white rounded px-4 py-2 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                     />
                     <textarea
-                      placeholder="Dicas de Execução (uma por linha)"
+                      placeholder="Dicas de Execução (uma por linha)
+Exemplo:
+Mantenha os cotovelos alinhados
+Desça controlado até o peito
+Não arqueie as costas"
                       value={newExercise.tips}
                       onChange={(e) => setNewExercise({...newExercise, tips: e.target.value})}
                       rows={4}
@@ -945,8 +1211,10 @@ const WorkoutSystem = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={addCustomExercise}
-                        className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold py-2 rounded transition-all"
+                        disabled={!newExercise.name || !newExercise.target}
+                        className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-semibold py-2 rounded transition-all flex items-center justify-center gap-2"
                       >
+                        <Plus className="w-4 h-4" />
                         Adicionar
                       </button>
                       <button
@@ -969,12 +1237,12 @@ const WorkoutSystem = () => {
               <div className="bg-gradient-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/30 rounded-lg p-4 backdrop-blur">
                 <h3 className="font-bold text-cyan-400 mb-2 flex items-center gap-2">
                   <Target className="w-5 h-5" />
-                  Lembre-se:
+                  Estratégia do Dia:
                 </h3>
                 <p className="text-sm text-slate-200">
-                  {currentWorkout === 'C' && 'Dia do Motor V8! Foco total em pernas e glúteos. São os músculos que mais aceleram seu metabolismo.'}
-                  {currentWorkout === 'B' && 'Dia da Postura! Cada puxada constrói suas costas e corrige a "postura torta".'}
-                  {currentWorkout === 'A' && 'Dia de Empurrar! Construa peito, ombros e braços com foco e intensidade.'}
+                  {currentWorkout === 'C' && '💪 Dia do Motor V8! Foco total em pernas e glúteos. São os músculos que mais aceleram seu metabolismo. Priorize a execução correta e aumente as cargas progressivamente.'}
+                  {currentWorkout === 'B' && '🎯 Dia da Postura! Cada puxada constrói suas costas e corrige a "postura torta". Foque em sentir o músculo trabalhando, não apenas em mover peso.'}
+                  {currentWorkout === 'A' && '🚀 Dia de Empurrar! Construa peito, ombros e braços com foco e intensidade. Mantenha a técnica impecável para melhores resultados.'}
                 </p>
               </div>
             </div>
