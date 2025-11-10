@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, CheckCircle, Calendar, TrendingUp, AlertCircle, Target, Flame, RefreshCw, Plus, X } from 'lucide-react';
+import { 
+  ChevronDown, ChevronUp, CheckCircle, Calendar, TrendingUp, 
+  AlertCircle, Target, Flame, RefreshCw, Plus, X, Menu,
+  Trash2, Activity, BarChart3, Dumbbell, Award, Zap
+} from 'lucide-react';
 
-// ⚡⚡⚡ CORREÇÃO IMPORTANTE - ADICIONE ESTE BLOCO AQUI ⚡⚡⚡
+// ⚡ Storage corrigido
 const storage = {
   get: async (key) => {
     try {
@@ -29,8 +33,12 @@ const WorkoutSystem = () => {
   const [customExercises, setCustomExercises] = useState({A: [], B: [], C: []});
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [newExercise, setNewExercise] = useState({ name: '', target: '', tips: '' });
+  
+  // 🆕 NOVOS ESTADOS
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('workout');
+  const [showClearHistory, setShowClearHistory] = useState(null);
 
-  // ⚡⚡⚡ CORREÇÃO - TROQUE O useEffect ORIGINAL POR ESTE ⚡⚡⚡
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -47,6 +55,29 @@ const WorkoutSystem = () => {
     };
     loadData();
   }, []);
+
+  // 🆕 FUNÇÃO PARA LIMPAR HISTÓRICO DE UM EXERCÍCIO
+  const clearExerciseHistory = async (exerciseId) => {
+    const newHistory = { ...workoutHistory };
+    delete newHistory[exerciseId];
+    setWorkoutHistory(newHistory);
+    try {
+      await storage.set('workout-history', JSON.stringify(newHistory));
+    } catch (err) {
+      console.error('Erro ao limpar histórico:', err);
+    }
+    setShowClearHistory(null);
+  };
+
+  // 🆕 FUNÇÃO PARA LIMPAR TODO O HISTÓRICO
+  const clearAllHistory = async () => {
+    setWorkoutHistory({});
+    try {
+      await storage.set('workout-history', JSON.stringify({}));
+    } catch (err) {
+      console.error('Erro ao limpar histórico:', err);
+    }
+  };
 
   const exerciseAlternatives = {
     'a1': [
@@ -143,6 +174,8 @@ const WorkoutSystem = () => {
     A: {
       name: 'EMPURRAR',
       subtitle: 'Peito, Ombros, Tríceps',
+      icon: '💪',
+      color: 'from-red-500 to-orange-500',
       exercises: [
         {
           id: 'a1',
@@ -206,6 +239,8 @@ const WorkoutSystem = () => {
     B: {
       name: 'PUXAR',
       subtitle: 'Costas, Bíceps, Postura',
+      icon: '🏔️',
+      color: 'from-blue-500 to-cyan-500',
       exercises: [
         {
           id: 'b1',
@@ -236,7 +271,7 @@ const WorkoutSystem = () => {
           target: 'Posterior de ombro e postura',
           tips: ['Peito colado no banco', 'Abra bem os braços', 'Contraia as escápulas'],
           strategic: true,
-          note: 'Corretor de postura. Trabalha a musculatura que "abre" o peito e corrigi ombros caídos.'
+          note: 'Corretor de postura. Trabalha a musculatura que "abre" o peito e corrige ombros caídos.'
         },
         {
           id: 'b5',
@@ -257,6 +292,8 @@ const WorkoutSystem = () => {
     C: {
       name: 'PERNAS',
       subtitle: 'Motor V8: Quadríceps, Posterior, Glúteo',
+      icon: '🦵',
+      color: 'from-green-500 to-emerald-500',
       exercises: [
         {
           id: 'c1',
@@ -323,13 +360,230 @@ const WorkoutSystem = () => {
     }
   };
 
+  // 🆕 COMPONENTE SIDEBAR
+  const Sidebar = () => (
+    <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 transform transition-transform duration-300 ease-in-out ${
+      sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+    }`}>
+      <div className="p-6 border-b border-slate-700">
+        <div className="flex items-center gap-3">
+          <Dumbbell className="w-8 h-8 text-cyan-400" />
+          <h2 className="text-xl font-bold text-white">Meu Treino</h2>
+        </div>
+      </div>
+      
+      <nav className="p-4 space-y-2">
+        <button
+          onClick={() => {
+            setActiveTab('workout');
+            setSidebarOpen(false);
+          }}
+          className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
+            activeTab === 'workout' 
+              ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' 
+              : 'text-slate-300 hover:bg-slate-800'
+          }`}
+        >
+          <Activity className="w-5 h-5" />
+          <span>Treino Atual</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('progress');
+            setSidebarOpen(false);
+          }}
+          className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
+            activeTab === 'progress' 
+              ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' 
+              : 'text-slate-300 hover:bg-slate-800'
+          }`}
+        >
+          <BarChart3 className="w-5 h-5" />
+          <span>Meu Progresso</span>
+        </button>
+
+        <div className="pt-4 border-t border-slate-700">
+          <h3 className="text-sm font-semibold text-slate-400 mb-2">Selecionar Treino</h3>
+          {Object.entries(workouts).map(([key, workout]) => (
+            <button
+              key={key}
+              onClick={() => {
+                setCurrentWorkout(key);
+                setActiveTab('workout');
+                setSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 p-3 rounded-lg mb-2 transition-all ${
+                currentWorkout === key
+                  ? 'bg-slate-800 text-white border border-slate-600'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <span className="text-lg">{workout.icon}</span>
+              <div className="text-left">
+                <div className="font-medium">Treino {key}</div>
+                <div className="text-xs text-slate-500">{workout.name}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {Object.keys(workoutHistory).length > 0 && (
+          <div className="pt-4 border-t border-slate-700">
+            <button
+              onClick={() => {
+                if (window.confirm('Tem certeza que quer limpar TODO o histórico?')) {
+                  clearAllHistory();
+                }
+              }}
+              className="w-full flex items-center gap-3 p-3 rounded-lg text-red-400 hover:bg-red-500/10 transition-all"
+            >
+              <Trash2 className="w-5 h-5" />
+              <span>Limpar Todo Histórico</span>
+            </button>
+          </div>
+        )}
+      </nav>
+    </div>
+  );
+
+  // 🆕 COMPONENTE DE PROGRESSO
+  const ProgressTab = () => {
+    const exercisesWithHistory = Object.entries(workoutHistory)
+      .filter(([_, history]) => history.length > 0);
+
+    if (exercisesWithHistory.length === 0) {
+      return (
+        <div className="max-w-2xl mx-auto px-4 mt-6">
+          <div className="text-center py-12">
+            <BarChart3 className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-white mb-2">Nenhum histórico ainda</h3>
+            <p className="text-slate-400">Comece a registrar seus treinos para ver seu progresso aqui!</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="max-w-2xl mx-auto px-4 mt-6">
+        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+          <BarChart3 className="w-6 h-6" />
+          Meu Progresso
+        </h2>
+
+        <div className="space-y-4">
+          {exercisesWithHistory.map(([exerciseId, history]) => {
+            const exercise = Object.values(workouts)
+              .flatMap(w => w.exercises)
+              .find(e => e.id === exerciseId) || 
+              Object.values(customExercises)
+                .flatMap(e => e)
+                .find(e => e.id === exerciseId);
+
+            if (!exercise) return null;
+
+            const latestLog = history[history.length - 1];
+            const previousLog = history.length > 1 ? history[history.length - 2] : null;
+            
+            const weightDiff = previousLog ? latestLog.weight - previousLog.weight : 0;
+            const repsDiff = previousLog ? latestLog.reps - previousLog.reps : 0;
+
+            return (
+              <div key={exerciseId} className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="font-bold text-white">{exercise.name}</h3>
+                    <p className="text-sm text-slate-400">{exercise.target}</p>
+                  </div>
+                  <button
+                    onClick={() => setShowClearHistory(showClearHistory === exerciseId ? null : exerciseId)}
+                    className="text-slate-400 hover:text-red-400 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {showClearHistory === exerciseId && (
+                  <div className="mb-3 p-3 bg-red-500/10 border border-red-500/30 rounded">
+                    <p className="text-red-300 text-sm mb-2">Limpar histórico deste exercício?</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => clearExerciseHistory(exerciseId)}
+                        className="flex-1 bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded text-sm"
+                      >
+                        Sim, Limpar
+                      </button>
+                      <button
+                        onClick={() => setShowClearHistory(null)}
+                        className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-1 px-3 rounded text-sm"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-white">{latestLog.sets}x{latestLog.reps}</div>
+                    <div className="text-xs text-slate-400">Séries x Reps</div>
+                    {repsDiff !== 0 && (
+                      <div className={`text-xs ${repsDiff > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {repsDiff > 0 ? '+' : ''}{repsDiff} reps
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-cyan-400">{latestLog.weight}kg</div>
+                    <div className="text-xs text-slate-400">Peso</div>
+                    {weightDiff !== 0 && (
+                      <div className={`text-xs ${weightDiff > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {weightDiff > 0 ? '+' : ''}{weightDiff}kg
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="text-lg font-bold text-white">{history.length}</div>
+                    <div className="text-xs text-slate-400">Registros</div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowHistory(showHistory === exerciseId ? null : exerciseId)}
+                  className="w-full mt-3 text-sm text-cyan-400 hover:text-cyan-300"
+                >
+                  {showHistory === exerciseId ? 'Esconder' : 'Ver'} Histórico Completo
+                </button>
+
+                {showHistory === exerciseId && (
+                  <div className="mt-3 space-y-2 max-h-40 overflow-y-auto">
+                    {history.slice().reverse().map((log, i) => (
+                      <div key={i} className="text-xs bg-slate-900 p-2 rounded border border-slate-700">
+                        <span className="font-semibold text-white">{log.sets}x{log.reps}</span> • 
+                        <span className="text-cyan-400 mx-1">{log.weight}kg</span> • 
+                        <span className="text-slate-400">
+                          {new Date(log.date).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   const getNextWorkout = () => {
     const order = ['A', 'B', 'C'];
     const currentIndex = order.indexOf(currentWorkout);
     return order[(currentIndex + 1) % 3];
   };
 
-  // ⚡⚡⚡ CORREÇÃO - TROQUE A FUNÇÃO completeWorkout ORIGINAL POR ESTA ⚡⚡⚡
   const completeWorkout = async () => {
     const next = getNextWorkout();
     setCurrentWorkout(next);
@@ -340,7 +594,6 @@ const WorkoutSystem = () => {
     }
   };
 
-  // ⚡⚡⚡ CORREÇÃO - TROQUE A FUNÇÃO saveLog ORIGINAL POR ESTA ⚡⚡⚡
   const saveLog = async (exerciseId, sets, reps, weight) => {
     const timestamp = new Date().toISOString();
     const newHistory = {
@@ -358,7 +611,6 @@ const WorkoutSystem = () => {
     }
   };
 
-  // ⚡⚡⚡ CORREÇÃO - TROQUE A FUNÇÃO addCustomExercise ORIGINAL POR ESTA ⚡⚡⚡
   const addCustomExercise = async () => {
     if (!newExercise.name || !newExercise.target) return;
     
@@ -388,7 +640,6 @@ const WorkoutSystem = () => {
     setShowAddExercise(false);
   };
 
-  // ⚡⚡⚡ CORREÇÃO - TROQUE A FUNÇÃO removeCustomExercise ORIGINAL POR ESTA ⚡⚡⚡
   const removeCustomExercise = async (exerciseId) => {
     const updated = {
       ...customExercises,
@@ -582,127 +833,155 @@ const WorkoutSystem = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 pb-20">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-6 shadow-2xl border-b border-slate-600">
+      {/* 🆕 SIDEBAR */}
+      <Sidebar />
+      
+      {/* 🆕 OVERLAY PARA FECHAR SIDEBAR */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* HEADER ATUALIZADO */}
+      <div className={`bg-gradient-to-r from-slate-800 to-slate-700 text-white p-6 shadow-2xl border-b border-slate-600 ${sidebarOpen ? 'blur-sm' : ''}`}>
         <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
-              <Calendar className="w-7 h-7" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">TREINO {currentWorkout}</h1>
-              <p className="text-lg text-cyan-400">{current.name}</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+              <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
+                <Calendar className="w-7 h-7" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight">TREINO {currentWorkout}</h1>
+                <p className="text-lg text-cyan-400">{current.name}</p>
+              </div>
             </div>
           </div>
           <p className="text-sm text-slate-300 mt-2">{current.subtitle}</p>
         </div>
       </div>
 
-      {/* Next Workout Info */}
-      <div className="max-w-2xl mx-auto px-4 mt-4">
-        <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-lg p-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-400">Próximo Treino:</p>
-            <p className="font-bold text-white">Treino {getNextWorkout()}: {workouts[getNextWorkout()].name}</p>
-          </div>
-          <button
-            onClick={completeWorkout}
-            className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold px-6 py-3 rounded-lg flex items-center gap-2 transition-all shadow-lg shadow-cyan-500/20"
-          >
-            <CheckCircle className="w-5 h-5" />
-            Concluir
-          </button>
-        </div>
-      </div>
-
-      {/* Exercises */}
-      <div className="max-w-2xl mx-auto px-4 mt-6">
-        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-          <div className="w-1 h-6 bg-gradient-to-b from-cyan-500 to-blue-600 rounded-full"></div>
-          Exercícios ({allExercises.length})
-        </h2>
-        {allExercises.map((exercise) => (
-          <ExerciseCard
-            key={exercise.id}
-            exercise={exercise}
-            workoutType={currentWorkout}
-          />
-        ))}
-      </div>
-
-      {/* Add Exercise Button */}
-      <div className="max-w-2xl mx-auto px-4 mt-6">
-        {!showAddExercise ? (
-          <button
-            onClick={() => setShowAddExercise(true)}
-            className="w-full bg-slate-800/50 hover:bg-slate-700/50 border-2 border-dashed border-slate-600 hover:border-cyan-500 text-slate-300 hover:text-white font-semibold py-4 rounded-lg flex items-center justify-center gap-2 transition-all"
-          >
-            <Plus className="w-5 h-5" />
-            Adicionar Exercício Personalizado
-          </button>
-        ) : (
-          <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-lg p-4">
-            <h3 className="font-bold text-white mb-4 flex items-center gap-2">
-              <Plus className="w-5 h-5" />
-              Novo Exercício
-            </h3>
-            <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Nome do Exercício"
-                value={newExercise.name}
-                onChange={(e) => setNewExercise({...newExercise, name: e.target.value})}
-                className="w-full bg-slate-700 border border-slate-600 text-white rounded px-4 py-2 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              />
-              <input
-                type="text"
-                placeholder="Músculo Alvo (ex: Peitoral superior)"
-                value={newExercise.target}
-                onChange={(e) => setNewExercise({...newExercise, target: e.target.value})}
-                className="w-full bg-slate-700 border border-slate-600 text-white rounded px-4 py-2 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              />
-              <textarea
-                placeholder="Dicas de Execução (uma por linha)"
-                value={newExercise.tips}
-                onChange={(e) => setNewExercise({...newExercise, tips: e.target.value})}
-                rows={4}
-                className="w-full bg-slate-700 border border-slate-600 text-white rounded px-4 py-2 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              />
-              <div className="flex gap-2">
+      {/* CONTEÚDO PRINCIPAL */}
+      <div className={sidebarOpen ? 'blur-sm' : ''}>
+        {activeTab === 'workout' ? (
+          <>
+            {/* Next Workout Info */}
+            <div className="max-w-2xl mx-auto px-4 mt-4">
+              <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-lg p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-400">Próximo Treino:</p>
+                  <p className="font-bold text-white">Treino {getNextWorkout()}: {workouts[getNextWorkout()].name}</p>
+                </div>
                 <button
-                  onClick={addCustomExercise}
-                  className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold py-2 rounded transition-all"
+                  onClick={completeWorkout}
+                  className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold px-6 py-3 rounded-lg flex items-center gap-2 transition-all shadow-lg shadow-cyan-500/20"
                 >
-                  Adicionar
-                </button>
-                <button
-                  onClick={() => {
-                    setShowAddExercise(false);
-                    setNewExercise({ name: '', target: '', tips: '' });
-                  }}
-                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 rounded transition-all"
-                >
-                  Cancelar
+                  <CheckCircle className="w-5 h-5" />
+                  Concluir
                 </button>
               </div>
             </div>
-          </div>
-        )}
-      </div>
 
-      {/* Strategy Note */}
-      <div className="max-w-2xl mx-auto px-4 mt-6 mb-6">
-        <div className="bg-gradient-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/30 rounded-lg p-4 backdrop-blur">
-          <h3 className="font-bold text-cyan-400 mb-2 flex items-center gap-2">
-            <Target className="w-5 h-5" />
-            Lembre-se:
-          </h3>
-          <p className="text-sm text-slate-200">
-            {currentWorkout === 'C' && 'Dia do Motor V8! Foco total em pernas e glúteos. São os músculos que mais aceleram seu metabolismo.'}
-            {currentWorkout === 'B' && 'Dia da Postura! Cada puxada constrói suas costas e corrige a "postura torta".'}
-            {currentWorkout === 'A' && 'Dia de Empurrar! Construa peito, ombros e braços com foco e intensidade.'}
-          </p>
-        </div>
+            {/* Exercises */}
+            <div className="max-w-2xl mx-auto px-4 mt-6">
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <div className="w-1 h-6 bg-gradient-to-b from-cyan-500 to-blue-600 rounded-full"></div>
+                Exercícios ({allExercises.length})
+              </h2>
+              {allExercises.map((exercise) => (
+                <ExerciseCard
+                  key={exercise.id}
+                  exercise={exercise}
+                  workoutType={currentWorkout}
+                />
+              ))}
+            </div>
+
+            {/* Add Exercise Button */}
+            <div className="max-w-2xl mx-auto px-4 mt-6">
+              {!showAddExercise ? (
+                <button
+                  onClick={() => setShowAddExercise(true)}
+                  className="w-full bg-slate-800/50 hover:bg-slate-700/50 border-2 border-dashed border-slate-600 hover:border-cyan-500 text-slate-300 hover:text-white font-semibold py-4 rounded-lg flex items-center justify-center gap-2 transition-all"
+                >
+                  <Plus className="w-5 h-5" />
+                  Adicionar Exercício Personalizado
+                </button>
+              ) : (
+                <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-lg p-4">
+                  <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                    <Plus className="w-5 h-5" />
+                    Novo Exercício
+                  </h3>
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      placeholder="Nome do Exercício"
+                      value={newExercise.name}
+                      onChange={(e) => setNewExercise({...newExercise, name: e.target.value})}
+                      className="w-full bg-slate-700 border border-slate-600 text-white rounded px-4 py-2 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Músculo Alvo (ex: Peitoral superior)"
+                      value={newExercise.target}
+                      onChange={(e) => setNewExercise({...newExercise, target: e.target.value})}
+                      className="w-full bg-slate-700 border border-slate-600 text-white rounded px-4 py-2 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    />
+                    <textarea
+                      placeholder="Dicas de Execução (uma por linha)"
+                      value={newExercise.tips}
+                      onChange={(e) => setNewExercise({...newExercise, tips: e.target.value})}
+                      rows={4}
+                      className="w-full bg-slate-700 border border-slate-600 text-white rounded px-4 py-2 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={addCustomExercise}
+                        className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold py-2 rounded transition-all"
+                      >
+                        Adicionar
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowAddExercise(false);
+                          setNewExercise({ name: '', target: '', tips: '' });
+                        }}
+                        className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 rounded transition-all"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Strategy Note */}
+            <div className="max-w-2xl mx-auto px-4 mt-6 mb-6">
+              <div className="bg-gradient-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/30 rounded-lg p-4 backdrop-blur">
+                <h3 className="font-bold text-cyan-400 mb-2 flex items-center gap-2">
+                  <Target className="w-5 h-5" />
+                  Lembre-se:
+                </h3>
+                <p className="text-sm text-slate-200">
+                  {currentWorkout === 'C' && 'Dia do Motor V8! Foco total em pernas e glúteos. São os músculos que mais aceleram seu metabolismo.'}
+                  {currentWorkout === 'B' && 'Dia da Postura! Cada puxada constrói suas costas e corrige a "postura torta".'}
+                  {currentWorkout === 'A' && 'Dia de Empurrar! Construa peito, ombros e braços com foco e intensidade.'}
+                </p>
+              </div>
+            </div>
+          </>
+        ) : (
+          <ProgressTab />
+        )}
       </div>
     </div>
   );
