@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.js": "/meu-treino/static/js/main.48ccf9ec.js",
+    "main.js": "/meu-treino/static/js/main.40bb8ab4.js",
     "index.html": "/meu-treino/index.html",
-    "main.48ccf9ec.js.map": "/meu-treino/static/js/main.48ccf9ec.js.map"
+    "main.40bb8ab4.js.map": "/meu-treino/static/js/main.40bb8ab4.js.map"
   },
   "entrypoints": [
-    "static/js/main.48ccf9ec.js"
+    "static/js/main.40bb8ab4.js"
   ]
 }
